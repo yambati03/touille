@@ -2,16 +2,31 @@
 # Run with: docker compose -f docker-compose.dev.yml up
 
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: touille
+      POSTGRES_PASSWORD: touille
+      POSTGRES_DB: touille
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+
   backend:
     build: ./backend
     env_file:
       - .env
+    environment:
+      - DATABASE_URL=postgresql://touille:touille@db:5432/touille
     ports:
       - "8000:8000"
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./backend/app:/app/app
       - ./output:/app/output
+    depends_on:
+      - db
 
   frontend:
     build:
@@ -27,3 +42,6 @@ services:
       - WATCHPACK_POLLING=true  # better file watching in Docker on some hosts
     depends_on:
       - backend
+
+volumes:
+  pgdata_dev:

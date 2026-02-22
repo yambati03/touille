@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,8 +8,17 @@ from .models import ProcessRequest, ProcessResponse, Recipe
 from .download import download_tiktok
 from .transcribe import transcribe_video
 from .extract import extract_recipe
+from .db import init_db, close_db, lookup_recipe, save_recipe
 
-app = FastAPI(title="Touille", description="TikTok recipe extractor")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+    close_db()
+
+
+app = FastAPI(title="Touille", description="TikTok recipe extractor", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,11 +43,20 @@ async def health():
 
 @app.post("/process", response_model=ProcessResponse)
 async def process_video(req: ProcessRequest):
+    url_str = str(req.url)
+
+    cached = lookup_recipe(url_str)
+    if cached is not None:
+        return ProcessResponse(
+            transcript=cached["transcript"],
+            caption=cached["caption"],
+            recipe=Recipe(**cached["recipe"]),
+        )
+
     api_key = _get_api_key()
-    video_path: str | None = None
 
     try:
-        result = download_tiktok(str(req.url))
+        result = download_tiktok(url_str)
     except RuntimeError as e:
         raise HTTPException(status_code=422, detail=f"Failed to download video: {e}")
 
@@ -54,5 +73,7 @@ async def process_video(req: ProcessRequest):
         recipe = Recipe(**recipe_dict)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Recipe extraction failed: {e}")
+
+    save_recipe(url_str, transcript, result.caption, recipe_dict)
 
     return ProcessResponse(transcript=transcript, caption=result.caption, recipe=recipe)

@@ -1,12 +1,25 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: touille
+      POSTGRES_PASSWORD: touille
+      POSTGRES_DB: touille
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
   backend:
     build: ./backend
     env_file:
       - .env
+    environment:
+      - DATABASE_URL=postgresql://touille:touille@db:5432/touille
     ports:
       - "8000:8000"
     volumes:
       - ./output:/app/output
+    depends_on:
+      - db
 
   frontend:
     build: ./frontend
@@ -16,3 +29,6 @@ services:
       - BACKEND_URL=http://backend:8000
     depends_on:
       - backend
+
+volumes:
+  pgdata:

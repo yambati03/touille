@@ -86,12 +86,11 @@ export default function Home() {
     }
   }
 
-  const formatAmount = (ing: Ingredient) => {
+  const formatQuantity = (ing: Ingredient) => {
+    if (ing.amount == null && !ing.unit) return null;
     const parts: string[] = [];
     if (ing.amount != null) parts.push(String(ing.amount));
     if (ing.unit) parts.push(ing.unit);
-    parts.push(ing.name);
-    if (ing.notes) parts.push(`(${ing.notes})`);
     return parts.join(" ");
   };
 
@@ -204,14 +203,22 @@ export default function Home() {
                       <h3 className="mb-3 text-lg font-semibold">
                         Ingredients
                       </h3>
-                      <ul className="space-y-1.5 text-sm">
-                        {data.recipe.ingredients.map((ing, i) => (
-                          <li key={i} className="flex items-start gap-2">
-                            <span className="mt-1.5 block h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                            {formatAmount(ing)}
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="grid grid-cols-[4rem_1fr_1fr] gap-x-3 gap-y-1.5 text-sm">
+                        {data.recipe.ingredients.map((ing, i) => {
+                          const qty = formatQuantity(ing);
+                          return (
+                            <div key={i} className="contents">
+                              <span className="text-right font-medium tabular-nums">
+                                {qty ?? ""}
+                              </span>
+                              <span>{ing.name}</span>
+                              <span className="text-muted-foreground">
+                                {ing.notes ?? ""}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     <Separator />
