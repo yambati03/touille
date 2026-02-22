@@ -13,7 +13,7 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgresql://touille:touille@db:5432/touille
+      - DATABASE_URL=postgresql+psycopg://touille:touille@db:5432/touille
     ports:
       - "8000:8000"
     volumes:
@@ -27,8 +27,14 @@ services:
       - "3000:3000"
     environment:
       - BACKEND_URL=http://backend:8000
+      - DATABASE_URL=postgresql://touille:touille@db:5432/touille
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL}
     depends_on:
       - backend
+      - db
 
 volumes:
   pgdata:

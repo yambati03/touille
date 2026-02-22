@@ -4,23 +4,18 @@ import { headers } from "next/headers";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
-export async function POST(req: NextRequest) {
-  const body = await req.json();
-
+export async function GET(req: NextRequest) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
 
-  const backendBody = {
-    ...body,
-    ...(session?.user?.id ? { user_id: session.user.id } : {}),
-  };
+  if (!session?.user?.id) {
+    return NextResponse.json([], { status: 200 });
+  }
 
-  const res = await fetch(`${BACKEND_URL}/process`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(backendBody),
-  });
+  const res = await fetch(
+    `${BACKEND_URL}/recipes?user_id=${encodeURIComponent(session.user.id)}`,
+  );
 
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });

@@ -3,6 +3,7 @@ from pydantic import BaseModel, HttpUrl
 
 class ProcessRequest(BaseModel):
     url: HttpUrl
+    user_id: str | None = None
 
 
 class Servings(BaseModel):
@@ -45,3 +46,14 @@ class ProcessResponse(BaseModel):
     transcript: str
     caption: str | None = None
     recipe: Recipe
+
+
+class ChatRequest(BaseModel):
+    recipe: Recipe
+    current_step: int
+    completed_steps: list[int] = []
+    message: str
+
+
+class ChatResponse(BaseModel):
+    reply: str

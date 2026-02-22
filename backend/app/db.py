@@ -1,13 +1,12 @@
-import json
-import os
-from contextlib import contextmanager
 from urllib.parse import urlparse, urlunparse
 
-import psycopg
-from psycopg.rows import dict_row
-from psycopg_pool import ConnectionPool
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-_pool: ConnectionPool | None = None
+from .database import SessionLocal
+from .sa_models import Recipe
+
+_ANON = "__anonymous__"
 
 
 def _normalize_tiktok_url(raw_url: str) -> str:
@@ -16,58 +15,24 @@ def _normalize_tiktok_url(raw_url: str) -> str:
     return urlunparse((parsed.scheme, parsed.netloc, parsed.path, "", "", ""))
 
 
-def get_pool() -> ConnectionPool:
-    global _pool
-    if _pool is None:
-        raise RuntimeError("Database pool not initialised — call init_db() first")
-    return _pool
-
-
-def init_db() -> None:
-    global _pool
-    dsn = os.environ.get("DATABASE_URL")
-    if not dsn:
-        raise RuntimeError("DATABASE_URL environment variable is not set")
-
-    _pool = ConnectionPool(dsn, min_size=1, max_size=5, open=True)
-
-    with _pool.connection() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS recipes (
-                id          SERIAL PRIMARY KEY,
-                url         TEXT UNIQUE NOT NULL,
-                transcript  TEXT NOT NULL,
-                caption     TEXT,
-                recipe      JSONB NOT NULL,
-                created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-            )
-        """)
-        conn.commit()
-
-
-def close_db() -> None:
-    global _pool
-    if _pool is not None:
-        _pool.close()
-        _pool = None
-
-
-def lookup_recipe(raw_url: str) -> dict | None:
+def lookup_recipe(raw_url: str, user_id: str | None = None) -> dict | None:
     url = _normalize_tiktok_url(raw_url)
-    with get_pool().connection() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
-            row = cur.execute(
-                "SELECT transcript, caption, recipe FROM recipes WHERE url = %s",
-                (url,),
-            ).fetchone()
+    effective_user = user_id or _ANON
+
+    with SessionLocal() as session:
+        row = session.execute(
+            select(Recipe.transcript, Recipe.caption, Recipe.recipe).where(
+                Recipe.url == url, Recipe.user_id == effective_user
+            )
+        ).first()
 
     if row is None:
         return None
 
     return {
-        "transcript": row["transcript"],
-        "caption": row["caption"],
-        "recipe": row["recipe"],
+        "transcript": row.transcript,
+        "caption": row.caption,
+        "recipe": row.recipe,
     }
 
 
@@ -76,18 +41,46 @@ def save_recipe(
     transcript: str,
     caption: str | None,
     recipe: dict,
+    user_id: str | None = None,
 ) -> None:
     url = _normalize_tiktok_url(raw_url)
-    with get_pool().connection() as conn:
-        conn.execute(
-            """
-            INSERT INTO recipes (url, transcript, caption, recipe)
-            VALUES (%s, %s, %s, %s::jsonb)
-            ON CONFLICT (url) DO UPDATE
-                SET transcript = EXCLUDED.transcript,
-                    caption    = EXCLUDED.caption,
-                    recipe     = EXCLUDED.recipe
-            """,
-            (url, transcript, caption, json.dumps(recipe)),
-        )
-        conn.commit()
+    effective_user = user_id or _ANON
+
+    stmt = pg_insert(Recipe).values(
+        url=url,
+        user_id=effective_user,
+        transcript=transcript,
+        caption=caption,
+        recipe=recipe,
+    )
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_recipes_url_user_id",
+        set_={
+            "transcript": stmt.excluded.transcript,
+            "caption": stmt.excluded.caption,
+            "recipe": stmt.excluded.recipe,
+        },
+    )
+
+    with SessionLocal() as session:
+        session.execute(stmt)
+        session.commit()
+
+
+def list_recipes_for_user(user_id: str) -> list[dict]:
+    with SessionLocal() as session:
+        rows = session.execute(
+            select(Recipe.id, Recipe.url, Recipe.recipe, Recipe.created_at)
+            .where(Recipe.user_id == user_id)
+            .order_by(Recipe.created_at.desc())
+        ).all()
+
+    return [
+        {
+            "id": r.id,
+            "url": r.url,
+            "recipe": r.recipe,
+            "created_at": r.created_at.isoformat(),
+        }
+        for r in rows
+    ]

@@ -18,12 +18,14 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgresql://touille:touille@db:5432/touille
+      - DATABASE_URL=postgresql+psycopg://touille:touille@db:5432/touille
     ports:
       - "8000:8000"
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./backend/app:/app/app
+      - ./backend/alembic.ini:/app/alembic.ini
+      - ./backend/migrations:/app/migrations
       - ./output:/app/output
     depends_on:
       - db
@@ -32,6 +34,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
+    env_file:
+      - .env
     ports:
       - "3000:3000"
     volumes:
@@ -39,9 +43,12 @@ services:
       - /app/node_modules  # keep container node_modules, don't overwrite with host
     environment:
       - BACKEND_URL=http://backend:8000
+      - DATABASE_URL=postgresql://touille:touille@db:5432/touille
+      - BETTER_AUTH_URL=http://localhost:3000
       - WATCHPACK_POLLING=true  # better file watching in Docker on some hosts
     depends_on:
       - backend
+      - db
 
 volumes:
   pgdata_dev:
