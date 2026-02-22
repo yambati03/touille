@@ -1,0 +1,29 @@
+# Dev mode: volume mounts + auto-reload (no rebuild on code change)
+# Run with: docker compose -f docker-compose.dev.yml up
+
+services:
+  backend:
+    build: ./backend
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend/app:/app/app
+      - ./output:/app/output
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules  # keep container node_modules, don't overwrite with host
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - WATCHPACK_POLLING=true  # better file watching in Docker on some hosts
+    depends_on:
+      - backend

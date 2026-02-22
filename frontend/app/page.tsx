@@ -101,7 +101,7 @@ export default function Home() {
         <div className="mb-12 text-center">
           <h1 className="text-4xl font-bold tracking-tight">Touille</h1>
           <p className="mt-2 text-muted-foreground">
-            Paste a TikTok link, get a structured recipe.
+            Paste a TikTok link, get a structured recipe. (Dev reload works!)
           </p>
         </div>
 

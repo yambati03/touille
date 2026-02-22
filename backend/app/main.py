@@ -28,7 +28,7 @@ def _get_api_key() -> str:
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "dev_reload": "works"}
 
 
 @app.post("/process", response_model=ProcessResponse)
