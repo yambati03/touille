@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TimerProvider } from "@/components/TimerProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -29,7 +30,7 @@ export default function RootLayout({
         className="antialiased"
         style={{ fontFamily: "'Varela Round', sans-serif" }}
       >
-        {children}
+        <TimerProvider>{children}</TimerProvider>
       </body>
     </html>
   );

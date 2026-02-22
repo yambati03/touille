@@ -1,10 +1,25 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Index, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.sql import func
 
 from .database import Base
+
+
+class UserSettings(Base):
+    __tablename__ = "user_settings"
+
+    user_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    dietary_restrictions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    spice_tolerance: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=2, server_default="2"
+    )
+    custom_rules: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class Recipe(Base):

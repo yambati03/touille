@@ -6,11 +6,11 @@ from alembic.config import Config
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from .models import ProcessRequest, ProcessResponse, Recipe, ChatRequest
+from .models import ProcessRequest, ProcessResponse, Recipe, ChatRequest, SettingsResponse, SettingsUpdate
 from .download import download_tiktok
 from .transcribe import transcribe_video
 from .extract import extract_recipe
-from .db import lookup_recipe, save_recipe, list_recipes_for_user
+from .db import lookup_recipe, save_recipe, list_recipes_for_user, get_recipe_by_id, get_user_settings, set_user_settings
 from .database import dispose_engine
 
 
@@ -77,6 +77,7 @@ async def process_video(req: ProcessRequest):
             transcript=cached["transcript"],
             caption=cached["caption"],
             recipe=Recipe(**cached["recipe"]),
+            recipe_id=cached["id"],
         )
 
     api_key = _get_api_key()
@@ -94,20 +95,55 @@ async def process_video(req: ProcessRequest):
         if result.video_path and os.path.exists(result.video_path):
             os.unlink(result.video_path)
 
+    user_settings = get_user_settings(user_id) if user_id else None
     try:
-        recipe_dict = extract_recipe(transcript, api_key, caption=result.caption)
+        recipe_dict = extract_recipe(
+            transcript, api_key, caption=result.caption, user_settings=user_settings
+        )
         recipe = Recipe(**recipe_dict)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Recipe extraction failed: {e}")
 
-    save_recipe(url_str, transcript, result.caption, recipe_dict, user_id=user_id)
+    recipe_id = save_recipe(url_str, transcript, result.caption, recipe_dict, user_id=user_id)
 
-    return ProcessResponse(transcript=transcript, caption=result.caption, recipe=recipe)
+    return ProcessResponse(
+        transcript=transcript,
+        caption=result.caption,
+        recipe=recipe,
+        recipe_id=recipe_id,
+    )
+
+
+@app.get("/settings", response_model=SettingsResponse | None)
+async def get_settings(user_id: str):
+    return get_user_settings(user_id)
+
+
+@app.put("/settings", response_model=SettingsResponse)
+async def put_settings(user_id: str, body: SettingsUpdate):
+    set_user_settings(
+        user_id,
+        dietary_restrictions=body.dietary_restrictions,
+        spice_tolerance=body.spice_tolerance,
+        custom_rules=body.custom_rules,
+    )
+    out = get_user_settings(user_id)
+    if not out:
+        raise HTTPException(status_code=500, detail="Settings not saved")
+    return SettingsResponse(**out)
 
 
 @app.get("/recipes")
 async def get_user_recipes(user_id: str):
     return list_recipes_for_user(user_id)
+
+
+@app.get("/recipes/{recipe_id}")
+async def get_recipe(recipe_id: int, user_id: str):
+    recipe = get_recipe_by_id(recipe_id, user_id)
+    if recipe is None:
+        raise HTTPException(status_code=404, detail="Recipe not found")
+    return recipe
 
 
 def _build_chat_prompt(req: ChatRequest) -> tuple[str, list[dict]]:
@@ -135,13 +171,20 @@ The user is currently on Step {req.current_step}. Steps marked [COMPLETED] are a
 
 Give concise, practical advice. If they describe a problem, help them fix it with what they likely have on hand. Keep answers short (2-4 sentences) unless more detail is needed.
 
+When needed, ask a brief clarifying question so you can give the best possible answer. For example: if the question is ambiguous, if you need to know what equipment or ingredients they have on hand, if scale or dietary constraints matter, or if their goal (e.g. faster vs. more authentic) would change your advice, ask one short question before answering. Do not ask for the sake of it; only when the answer would clearly be better with that information.
+
 Format your response using markdown to make it easy to scan:
 - Use **bold** for key actions, ingredient names, or important values (temperatures, times, amounts)
 - Use bullet points or numbered lists when giving multiple tips or steps
 - Use *italics* for emphasis on warnings or important notes
 - Do NOT use headings or code blocks"""
 
-    return system_prompt, [{"role": "user", "content": req.message}]
+    messages = [
+        {"role": m.role, "content": m.content}
+        for m in req.history
+    ]
+    messages.append({"role": "user", "content": req.message})
+    return system_prompt, messages
 
 
 @app.post("/chat")
