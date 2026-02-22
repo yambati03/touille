@@ -95,7 +95,7 @@ export default function RecipePage() {
         >
           ← Back to My Recipes
         </Link>
-        <RecipeCard recipe={recipe.recipe} />
+        <RecipeCard recipe={recipe.recipe} recipeId={recipe.id} />
       </div>
     </main>
   );

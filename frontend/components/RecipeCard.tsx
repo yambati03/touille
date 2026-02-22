@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import { useTimer } from "@/components/TimerProvider";
+import { getStepChat, setStepChat } from "@/lib/step-chat-storage";
 
 export interface Ingredient {
   name: string;
@@ -75,7 +76,7 @@ function TimeChip({ label, minutes }: { label: string; minutes: number }) {
   );
 }
 
-export function RecipeCard({ recipe }: { recipe: Recipe }) {
+export function RecipeCard({ recipe, recipeId }: { recipe: Recipe; recipeId?: number }) {
   const { startTimer } = useTimer();
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [chatStep, setChatStep] = useState<number | null>(null);
@@ -92,6 +93,22 @@ export function RecipeCard({ recipe }: { recipe: Recipe }) {
     }
   }, [chatMessages, chatLoading]);
 
+  useEffect(() => {
+    if (recipeId == null || chatStep == null || chatMessages.length === 0) return;
+    if (chatLoading && chatMessages[chatMessages.length - 1]?.role === "assistant") return;
+    setStepChat(recipeId, chatStep, chatMessages);
+  }, [recipeId, chatStep, chatMessages, chatLoading]);
+
+  useEffect(() => {
+    if (chatStep !== null) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [chatStep]);
+
   const toggleStep = (order: number) => {
     setCompletedSteps((prev) => {
       const next = new Set(prev);
@@ -103,7 +120,12 @@ export function RecipeCard({ recipe }: { recipe: Recipe }) {
 
   const openChat = (stepOrder: number) => {
     setChatStep(stepOrder);
-    setChatMessages([]);
+    if (recipeId != null) {
+      const loaded = getStepChat(recipeId, stepOrder);
+      setChatMessages(loaded ?? []);
+    } else {
+      setChatMessages([]);
+    }
     setChatInput("");
   };
 
