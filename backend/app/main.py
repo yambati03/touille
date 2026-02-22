@@ -30,7 +30,7 @@ def _run_migrations() -> None:
     has_recipes = "recipes" in inspector.get_table_names()
 
     if has_recipes and not has_alembic:
-        # DB predates Alembic — stamp it at 001 so only newer migrations run
+        # DB predates Alembic; stamp it at 001 so only newer migrations run
         command.stamp(alembic_cfg, "001")
 
     command.upgrade(alembic_cfg, "head")
@@ -133,7 +133,13 @@ Steps:
 
 The user is currently on Step {req.current_step}. Steps marked [COMPLETED] are already done.
 
-Give concise, practical advice. If they describe a problem, help them fix it with what they likely have on hand. Keep answers short (2-4 sentences) unless more detail is needed."""
+Give concise, practical advice. If they describe a problem, help them fix it with what they likely have on hand. Keep answers short (2-4 sentences) unless more detail is needed.
+
+Format your response using markdown to make it easy to scan:
+- Use **bold** for key actions, ingredient names, or important values (temperatures, times, amounts)
+- Use bullet points or numbered lists when giving multiple tips or steps
+- Use *italics* for emphasis on warnings or important notes
+- Do NOT use headings or code blocks"""
 
     return system_prompt, [{"role": "user", "content": req.message}]
 

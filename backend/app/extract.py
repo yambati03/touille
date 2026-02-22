@@ -47,6 +47,7 @@ Rules:
 - If information is not mentioned in the transcript, use null for optional fields
 - Normalize ingredient amounts to numbers (e.g. "half" -> 0.5, "a dozen" -> 12)
 - Normalize units to standard abbreviations (e.g. "tablespoons" -> "tbsp", "teaspoons" -> "tsp", "grams" -> "g")
+- IMPORTANT: If specific amounts are not explicitly stated for ingredients, you MUST infer reasonable amounts based on the recipe context, the number of servings, the type of dish, and standard cooking ratios. Every ingredient should have an amount and unit. Never leave them null unless the ingredient is truly used "to taste" (e.g. salt, pepper), in which case set the notes to "to taste"
 - Split compound steps into individual, atomic steps
 - Infer reasonable tags from context (e.g. "vegetarian", "gluten-free", "dessert", "quick")
 - List any cooking tools or equipment mentioned

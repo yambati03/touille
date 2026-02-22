@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { authClient } from "@/lib/auth-client";
+import ReactMarkdown from "react-markdown";
 
 interface Ingredient {
   name: string;
@@ -69,7 +70,7 @@ export default function Home() {
   const [selectedRecipe, setSelectedRecipe] = useState<SavedRecipe | null>(
     null,
   );
-  const [activeTab, setActiveTab] = useState<"recipe" | "transcript" | "caption">("recipe");
+
 
   const loadRecipes = useCallback(async () => {
     if (!session?.user) return;
@@ -94,7 +95,6 @@ export default function Home() {
     setError("");
     setData(null);
     setSelectedRecipe(null);
-    setActiveTab("recipe");
 
     try {
       const res = await fetch("/api/process", {
@@ -134,14 +134,21 @@ export default function Home() {
       {/* Header */}
       <header className="relative z-10 border-b border-border/60 bg-cream/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2.5">
+          <button
+            className="flex items-center gap-2.5"
+            onClick={() => {
+              setSelectedRecipe(null);
+              setData(null);
+              setStatus("idle");
+            }}
+          >
             <h1
               className="text-2xl font-bold tracking-wide text-espresso"
               style={{ fontFamily: "var(--font-display)" }}
             >
               Touille
             </h1>
-          </div>
+          </button>
           {sessionLoading ? null : session?.user ? (
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-terracotta/10 text-sm font-semibold text-terracotta">
@@ -155,7 +162,7 @@ export default function Home() {
               </span>
               <button
                 onClick={() => authClient.signOut()}
-                className="rounded-full border border-border px-3.5 py-1.5 text-xs font-medium text-warm-gray transition-all hover:border-terracotta/40 hover:text-terracotta"
+                className="rounded-md border border-border px-3.5 py-1.5 text-xs font-medium text-warm-gray transition-all hover:border-terracotta/40 hover:text-terracotta"
                 style={{ fontFamily: "var(--font-accent)" }}
               >
                 Sign out
@@ -166,7 +173,7 @@ export default function Home() {
               onClick={() =>
                 authClient.signIn.social({ provider: "google" })
               }
-              className="rounded-full bg-espresso px-5 py-2 text-sm font-medium text-cream transition-all hover:bg-espresso/90 hover:shadow-lg hover:shadow-espresso/20"
+              className="rounded-md bg-terracotta px-5 py-2 text-sm font-medium text-white transition-all hover:bg-terracotta/90 hover:shadow-lg hover:shadow-terracotta/20"
               style={{ fontFamily: "var(--font-accent)" }}
             >
               Sign in with Google
@@ -185,13 +192,13 @@ export default function Home() {
             >
               Paste a link,
               <br />
-              <span className="text-terracotta">cook something real</span>
+              <span className="gradient-hero">cook something real</span>
             </h2>
             <p
               className="mx-auto mt-5 max-w-md text-base leading-relaxed text-warm-gray"
               style={{ fontFamily: "var(--font-accent)" }}
             >
-              Drop a TikTok URL and we&apos;ll pull out the full recipe —
+              Drop a TikTok URL and we&apos;ll pull out the full recipe:
               ingredients, steps, times, and all.
             </p>
           </div>
@@ -202,7 +209,7 @@ export default function Home() {
           onSubmit={handleSubmit}
           className="animate-fade-up stagger-2 mx-auto max-w-2xl"
         >
-          <div className="flex gap-3 rounded-2xl bg-card p-2.5 shadow-xl shadow-espresso/[0.04] ring-1 ring-border/70 transition-all focus-within:ring-2 focus-within:ring-terracotta/40">
+          <div className="flex gap-3 rounded-lg bg-card p-2.5 shadow-xl shadow-espresso/[0.04] ring-1 ring-border/70 transition-all focus-within:ring-2 focus-within:ring-terracotta/40">
             <input
               type="url"
               placeholder="https://www.tiktok.com/@user/video/..."
@@ -216,7 +223,7 @@ export default function Home() {
             <button
               type="submit"
               disabled={status === "loading"}
-              className="rounded-xl bg-terracotta px-6 py-3 text-sm font-semibold text-cream transition-all hover:bg-terracotta/90 hover:shadow-lg hover:shadow-terracotta/25 disabled:opacity-50 disabled:hover:shadow-none"
+              className="rounded-md bg-terracotta px-6 py-3 text-sm font-semibold text-cream transition-all hover:bg-terracotta/90 hover:shadow-lg hover:shadow-terracotta/25 disabled:opacity-50 disabled:hover:shadow-none"
               style={{ fontFamily: "var(--font-accent)" }}
             >
               {status === "loading" ? (
@@ -259,77 +266,18 @@ export default function Home() {
 
         {/* Error */}
         {status === "error" && (
-          <div className="mx-auto mt-10 max-w-2xl animate-fade-up rounded-2xl border border-red-200 bg-red-50/80 px-6 py-4">
+          <div className="mx-auto mt-10 max-w-2xl animate-fade-up rounded-lg border border-red-200 bg-red-50/80 px-6 py-4">
             <p className="text-sm text-red-700" style={{ fontFamily: "var(--font-accent)" }}>
               {error}
             </p>
           </div>
         )}
 
-        {/* Result with tabs */}
+        {/* Result */}
         {status === "done" && data && !selectedRecipe && (
           <div className="mt-12 animate-fade-up">
             <div className="mx-auto max-w-3xl">
-              <div className="mb-6 flex justify-center gap-1 rounded-full bg-cream-dark/60 p-1">
-                {(["recipe", "transcript", "caption"] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`rounded-full px-5 py-2 text-sm font-medium capitalize transition-all ${
-                      activeTab === tab
-                        ? "bg-card text-espresso shadow-sm"
-                        : "text-warm-gray hover:text-espresso"
-                    }`}
-                    style={{ fontFamily: "var(--font-accent)" }}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-
-              {activeTab === "recipe" && (
-                <RecipeCard recipe={data.recipe} />
-              )}
-
-              {activeTab === "transcript" && (
-                <div className="rounded-2xl bg-card p-8 shadow-lg shadow-espresso/[0.03] ring-1 ring-border/50">
-                  <h3
-                    className="mb-4 text-lg text-espresso"
-                    style={{ fontFamily: "var(--font-display)" }}
-                  >
-                    Transcript
-                  </h3>
-                  <p
-                    className="whitespace-pre-wrap text-sm leading-relaxed text-warm-gray"
-                    style={{ fontFamily: "var(--font-accent)" }}
-                  >
-                    {data.transcript}
-                  </p>
-                </div>
-              )}
-
-              {activeTab === "caption" && (
-                <div className="rounded-2xl bg-card p-8 shadow-lg shadow-espresso/[0.03] ring-1 ring-border/50">
-                  <h3
-                    className="mb-4 text-lg text-espresso"
-                    style={{ fontFamily: "var(--font-display)" }}
-                  >
-                    Caption
-                  </h3>
-                  {data.caption ? (
-                    <p
-                      className="whitespace-pre-wrap text-sm leading-relaxed text-warm-gray"
-                      style={{ fontFamily: "var(--font-accent)" }}
-                    >
-                      {data.caption}
-                    </p>
-                  ) : (
-                    <p className="text-sm italic text-warm-gray/60" style={{ fontFamily: "var(--font-accent)" }}>
-                      No caption found for this video.
-                    </p>
-                  )}
-                </div>
-              )}
+              <RecipeCard recipe={data.recipe} />
             </div>
           </div>
         )}
@@ -344,7 +292,7 @@ export default function Home() {
                 </p>
                 <button
                   onClick={() => setSelectedRecipe(null)}
-                  className="rounded-full border border-border px-4 py-1.5 text-xs font-medium text-warm-gray transition-all hover:border-terracotta/40 hover:text-terracotta"
+                  className="rounded-md border border-border px-4 py-1.5 text-xs font-medium text-warm-gray transition-all hover:border-terracotta/40 hover:text-terracotta"
                   style={{ fontFamily: "var(--font-accent)" }}
                 >
                   Close
@@ -359,20 +307,12 @@ export default function Home() {
         {session?.user && savedRecipes.length > 0 && (
           <section className="mt-20 pb-20 animate-fade-up">
             <div className="mb-8 flex items-end justify-between">
-              <div>
-                <p
-                  className="mb-1 text-xs font-medium uppercase tracking-[0.2em] text-terracotta"
-                  style={{ fontFamily: "var(--font-accent)" }}
-                >
-                  Your Collection
-                </p>
-                <h3
-                  className="text-3xl text-espresso"
-                  style={{ fontFamily: "var(--font-display)" }}
-                >
-                  My Recipes
-                </h3>
-              </div>
+              <h3
+                className="text-3xl text-espresso"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                My Recipes
+              </h3>
               <p className="text-sm text-warm-gray" style={{ fontFamily: "var(--font-accent)" }}>
                 {savedRecipes.length} recipe{savedRecipes.length !== 1 && "s"}
               </p>
@@ -387,9 +327,9 @@ export default function Home() {
                     setStatus("idle");
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }}
-                  className={`animate-fade-up stagger-${Math.min(i + 1, 6)} group cursor-pointer rounded-2xl bg-card p-5 text-left shadow-md shadow-espresso/[0.03] ring-1 ring-border/50 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-terracotta/[0.08] hover:ring-terracotta/30`}
+                  className={`animate-fade-up stagger-${Math.min(i + 1, 6)} group flex cursor-pointer flex-col rounded-lg bg-card p-5 text-left shadow-md shadow-espresso/[0.03] ring-1 ring-border/50 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-terracotta/[0.08] hover:ring-terracotta/30`}
                 >
-                  <div className="mb-3 flex items-start justify-between">
+                  <div className="mb-3 flex w-full items-start justify-between">
                     <span className="text-2xl">
                       {EMOJI_ICONS[r.id % EMOJI_ICONS.length]}
                     </span>
@@ -406,25 +346,12 @@ export default function Home() {
                   >
                     {r.recipe.title}
                   </h4>
-                  {r.recipe.description && (
-                    <p
-                      className="mb-3 line-clamp-2 text-xs leading-relaxed text-warm-gray"
-                      style={{ fontFamily: "var(--font-accent)" }}
-                    >
-                      {r.recipe.description}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap gap-1.5">
-                    {r.recipe.tags.slice(0, 3).map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full bg-sage-light/30 px-2.5 py-0.5 text-[10px] font-medium text-sage"
-                        style={{ fontFamily: "var(--font-accent)" }}
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+                  <p
+                    className="mb-3 line-clamp-2 min-h-[2.5rem] text-xs leading-relaxed text-warm-gray"
+                    style={{ fontFamily: "var(--font-accent)" }}
+                  >
+                    {r.recipe.description ?? "\u00A0"}
+                  </p>
                 </button>
               ))}
             </div>
@@ -543,7 +470,7 @@ function RecipeCard({ recipe }: { recipe: Recipe }) {
 
   return (
     <>
-      <div className="overflow-hidden rounded-2xl bg-card shadow-lg shadow-espresso/[0.04] ring-1 ring-border/50">
+      <div className="overflow-hidden rounded-lg bg-card shadow-lg shadow-espresso/[0.04] ring-1 ring-border/50">
         <div className="border-b border-border/50 px-8 pb-6 pt-8">
           <h3
             className="text-2xl text-espresso sm:text-3xl"
@@ -559,17 +486,6 @@ function RecipeCard({ recipe }: { recipe: Recipe }) {
               {recipe.description}
             </p>
           )}
-          <div className="mt-4 flex flex-wrap gap-2">
-            {recipe.tags.map((tag) => (
-              <span
-                key={tag}
-                className="rounded-full bg-sage-light/25 px-3 py-1 text-xs font-medium text-sage"
-                style={{ fontFamily: "var(--font-accent)" }}
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
         </div>
 
         <div className="space-y-0">
@@ -729,7 +645,7 @@ function RecipeCard({ recipe }: { recipe: Recipe }) {
         </div>
       </div>
 
-      {/* Chat Modal — portaled to document.body so backdrop-blur covers the entire screen */}
+      {/* Chat Modal */}
       {chatStep !== null && createPortal(
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center"
@@ -739,7 +655,7 @@ function RecipeCard({ recipe }: { recipe: Recipe }) {
           }}
         >
           <div
-            className="animate-fade-up mx-4 flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-card shadow-2xl ring-1 ring-border/50"
+            className="animate-fade-up mx-4 flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-card shadow-2xl ring-1 ring-border/50"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal header */}
@@ -770,7 +686,7 @@ function RecipeCard({ recipe }: { recipe: Recipe }) {
                 <div className="py-8 text-center">
                   <span className="mb-3 inline-block text-3xl">✦</span>
                   <p className="text-sm text-warm-gray" style={{ fontFamily: "var(--font-accent)" }}>
-                    Ask anything about this step — troubleshooting, substitutions, technique tips...
+                    Ask anything about this step: troubleshooting, substitutions, technique tips...
                   </p>
                 </div>
               )}
@@ -778,18 +694,18 @@ function RecipeCard({ recipe }: { recipe: Recipe }) {
                 <div key={i} className={i > 0 ? "mt-4" : ""}>
                   {msg.role === "user" ? (
                     <p
-                      className="text-sm font-semibold text-espresso"
+                      className="rounded-md bg-cream-dark/70 px-3 py-2 text-sm font-semibold text-espresso"
                       style={{ fontFamily: "var(--font-accent)" }}
                     >
                       {msg.text}
                     </p>
                   ) : (
-                    <p
-                      className="mt-1.5 text-sm leading-relaxed text-warm-gray"
+                    <div
+                      className="chat-prose mt-1.5 text-sm leading-relaxed text-warm-gray"
                       style={{ fontFamily: "var(--font-accent)" }}
                     >
-                      {msg.text}
-                    </p>
+                      <ReactMarkdown>{msg.text}</ReactMarkdown>
+                    </div>
                   )}
                   {msg.role === "assistant" && i < chatMessages.length - 1 && (
                     <div className="mt-4 border-b border-border/30" />
@@ -824,14 +740,14 @@ function RecipeCard({ recipe }: { recipe: Recipe }) {
                   onChange={(e) => setChatInput(e.target.value)}
                   placeholder="My batter feels too watery..."
                   disabled={chatLoading}
-                  className="flex-1 rounded-xl bg-cream-dark/50 px-4 py-2.5 text-sm text-espresso placeholder:text-warm-gray/50 focus:outline-none focus:ring-2 focus:ring-terracotta/30 disabled:opacity-50"
+                  className="flex-1 rounded-md bg-cream-dark/50 px-4 py-2.5 text-sm text-espresso placeholder:text-warm-gray/50 focus:outline-none focus:ring-2 focus:ring-terracotta/30 disabled:opacity-50"
                   style={{ fontFamily: "var(--font-accent)" }}
                   autoFocus
                 />
                 <button
                   type="submit"
                   disabled={chatLoading || !chatInput.trim()}
-                  className="rounded-xl bg-terracotta px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-terracotta/90 disabled:opacity-40"
+                  className="rounded-md bg-terracotta px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-terracotta/90 disabled:opacity-40"
                   style={{ fontFamily: "var(--font-accent)" }}
                 >
                   Send
